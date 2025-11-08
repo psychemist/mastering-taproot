@@ -160,7 +160,7 @@ The spender provides:
 
 Let's examine the famous first Bitcoin transaction: Satoshi Nakamoto sending 10 BTC to Hal Finney.
 
-**Transaction ID**: `f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16`
+**Transaction ID**: [`f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16`](https://mempool.space/tx/f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16)
 
 **Transaction Structure**:
 
