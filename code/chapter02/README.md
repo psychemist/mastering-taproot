@@ -77,6 +77,18 @@ python3 01_build_p2pkh_transaction.py
 - You can view the transaction on a testnet explorer using the transaction ID
 - Understanding P2PKH is fundamental for learning more advanced script types like Taproot
 
+## Security Warning
+
+⚠️ **IMPORTANT**: This example uses a hardcoded **testnet** private key for educational purposes.
+
+- The private key `cPeon9fBsW2BxwJTALj3hGzh9vm8C52Uqsce7MzXGS1iFJkPF4AT` is a **testnet-only** key
+- This key is intentionally exposed for code reproducibility and educational demonstration
+- **DO NOT** use this key or any exposed private key for mainnet transactions
+- **DO NOT** reuse this pattern in production code—always generate keys securely
+- For production use, always use well-tested wallet software with proper key management
+
+This script demonstrates P2PKH transaction construction for learning purposes. It is not a production-ready wallet implementation.
+
 ## Understanding the Code
 
 ### Transaction Structure
@@ -96,4 +108,6 @@ The P2PKH script follows this pattern:
 5. Verify signature (OP_CHECKSIG)
 
 See Chapter 2 for detailed stack execution traces.
+
+
 

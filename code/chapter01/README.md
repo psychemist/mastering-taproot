@@ -114,3 +114,14 @@ python3 05_verify_addresses.py  # Verify address formats and sizes
 - Output values will differ each time you run the scripts (as expected for cryptographic operations)
 - The library properly supports Taproot addresses (P2TR) with the `bc1p` prefix
 
+## Security Warning
+
+⚠️ **IMPORTANT**: These are educational examples for learning Bitcoin key and address generation.
+
+- **DO NOT** use generated private keys for real Bitcoin transactions
+- **DO NOT** share private keys or WIF strings publicly
+- For production use, always use well-tested wallet software with proper key management
+- The examples use `mainnet` for address format demonstration, but in practice, always test on `testnet` first
+
+These scripts are designed for educational purposes to understand Bitcoin's cryptographic foundations. They are not production-ready wallet implementations.
+

@@ -22,6 +22,9 @@ def main():
     setup('testnet')
 
     # Sender information - Legacy P2PKH
+    # NOTE: This is a TESTNET private key used for educational purposes only.
+    # The key is intentionally exposed here for reproducibility of the example.
+    # NEVER use this key or any exposed private key for real Bitcoin transactions.
     private_key = PrivateKey('cPeon9fBsW2BxwJTALj3hGzh9vm8C52Uqsce7MzXGS1iFJkPF4AT')
     public_key = private_key.get_public_key()
     from_address_str = "myYHJtG3cyoRseuTwvViGHgP2efAvZkYa4"
