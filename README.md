@@ -37,6 +37,12 @@ This is an active public draft.
 
 Updates are pushed regularly as chapters and code samples reach reproducible stability.
 
+⸻
+
+### Educational Use
+
+Parts of this repository will also be used in future Bitcoin developer onboarding sessions, further supporting newcomers entering Script, Taproot, and protocol-level engineering.
+
 ---
 
 ### Repository Structure
