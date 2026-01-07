@@ -1,0 +1,31 @@
+# Jupyter Book 配置文件
+
+title: Mastering Taproot
+author: aaron-recompile
+language: zh-Hans
+
+# 网站设置
+html:
+  baseurl: ""  # 如果部署到子路径，填写子路径
+  home_page_in_navbar: true
+  use_edit_page_button: false
+  use_repository_button: false  # 暂时关闭，避免配置错误
+  use_issues_button: false
+  logo: ""  # 可以添加 logo 路径
+
+# 执行设置
+execute:
+  execute_notebooks: "auto"  # auto, force, cache, off
+  timeout: 60
+  allow_errors: false
+
+# 解析设置
+parse:
+  myst_enable_extensions:
+    - colon_fence
+  myst_url_schemes: ["http", "https", "mailto"]
+
+# 启动器设置
+launch_buttons:
+  notebook_interface: "jupyterlab"  # jupyterlab, classic, or binder
+

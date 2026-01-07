@@ -1,4 +1,10 @@
+# Local experimental content (not for GitHub)
 notes/
+# Allow notebooks/zh-Hans/ for GitHub Pages deployment
+!notebooks/
+!notebooks/zh-Hans/
+notebooks/
+!notebooks/zh-Hans/*.ipynb
 
 # Python virtual environments
 venv/
@@ -11,3 +17,7 @@ __pycache__/
 
 # Debug notes (internal only, not for publication)
 **/DEBUG_NOTES.md
+
+# Jupyter Book 构建输出
+_build/
+.jupyter_cache/
