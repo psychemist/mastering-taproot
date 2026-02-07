@@ -1,7 +1,7 @@
 # Mastering Taproot (Public Draft)
 
 <p align="center">
-  <img src="images/cover.jpg" width="320">
+  <img src="images/cover.jpg" width="260">
 </p>
 
 ### About the Book
