@@ -67,7 +67,7 @@ ECDSA Multisig (3-of-3):
 │ Total Size: ~213 bytes              │
 │ Verifications: 3 separate           │
 │ Privacy: REVEALS 3 participants     │
-│ Appearance: 👤👤👤 (obviously multi)│
+│ Appearance: multi (obviously multi) │
 └─────────────────────────────────────┘
 
 Schnorr Aggregated (3-of-3):
@@ -78,30 +78,30 @@ Schnorr Aggregated (3-of-3):
 ├─────────────────────────────────────┤
 │ Total Size: 64 bytes                │
 │ Verifications: 1 single check       │
-│ Privacy: REVEALS nothing about #    │
-│ Appearance: 👤 (looks like single)  │
+│ Privacy: hides participant count    │
+│ Appearance: single (looks single)   │
 └─────────────────────────────────────┘
 ```
 
 **The Privacy Magic:**
 ```
 External Observer sees:
-┌──────────────────┬───────────────────┐
-│   Transaction A  │   Transaction B   │
-├──────────────────┼───────────────────┤
-│ 64-byte signature│ 64-byte signature │
-│ Looks like: 👤   │ Looks like: 👤    │
-└──────────────────┴───────────────────┘
+┌──────────────────┬──────────────────┐
+│   Transaction A  │   Transaction B  │
+├──────────────────┼──────────────────┤
+│ 64-byte signature│ 64-byte signature│
+│ Looks: single    │ Looks: single    │
+└──────────────────┴──────────────────┘
 
 Reality:
-┌──────────────────┬───────────────────┐
-│   Transaction A  │   Transaction B   │
-├──────────────────┼───────────────────┤
-│ Actually: 👤     │ Actually: 👤👤👤  │
-│ (1 person)       │ (3 people)        │
-└──────────────────┴───────────────────┘
+┌──────────────────┬──────────────────┐
+│   Transaction A  │   Transaction B  │
+├──────────────────┼──────────────────┤
+│ Actual: single   │ Actual: multi    │
+│ (1 person)       │ (3 people)       │
+└──────────────────┴──────────────────┘
 
-🔮 Impossible to distinguish from outside!
+[Note] Impossible to distinguish from outside!
 ```
 
 ## Key Tweaking: The Bridge to Taproot
@@ -234,8 +234,8 @@ def demonstrate_key_tweaking():
     # Step 5: Verify the mathematical relationship
     print(f"\n=== STEP 5: Mathematical Verification ===")
     print(f"d' * G = P'? {tweaked_private_key.get_public_key().to_hex() == tweaked_public_key.to_hex()}")
-    print(f"Anyone can compute P' from P and commitment: ✓")
-    print(f"Only key holder can compute d' from d and tweak: ✓")
+    print(f"Anyone can compute P' from P and commitment: [OK]")
+    print(f"Only key holder can compute d' from d and tweak: [OK]")
     
     return {
         'internal_private': internal_private_key,
