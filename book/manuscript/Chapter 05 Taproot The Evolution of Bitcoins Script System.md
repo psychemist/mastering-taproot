@@ -247,6 +247,18 @@ def demonstrate_key_tweaking():
 # Execute the demonstration
 result = demonstrate_key_tweaking()
 ```
+Under the hood, during `internal_public_key.to_taproot_hex()`, bitcoinutils library executes:
+```python
+# calculate tweak using HashTapTweak(internal_public_key || script (empty))
+tweak_int = calculate_tweak(self, script)
+
+# tweak public key with calculated tweak (Q = P + twk * G)
+# P = internal_public_key, Q = tweaked_public_point, twk = tweak_int
+Q = point_add(P, (point_mul(G, tweak_int)))
+```
+
+Due to Schnorr's algebraic linearity, `d * G + tweak * G == (d + tweak) * G` i.e. `P + T == d' * G == P' == Q`.
+So, we can tweak a private key using scalar multiplication or tweak a public key via point addition and produce the same tweaked public key.
 
 **Key Insights from Key Tweaking:**
 
