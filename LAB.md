@@ -42,6 +42,10 @@ The current Mastering Taproot Lab cohort is hosted as part of the
 
 Reading the book in order is recommended. Recordings provide structured guidance.
 
+Most sessions in this cycle are invite-only to preserve cohort quality and feedback depth.  
+Public/free releases have started, with this Lab page as the unified discovery entry point.  
+Public episode: [Mastering Taproot Series #1](https://youtu.be/qAYCzjd8ONc).
+
 **Month 1 — Foundations**
 
 Four recorded sessions to connect key ideas from the book:
