@@ -62,7 +62,3 @@ These are **historical** testnet transactions for comparison (same pattern as th
 - Reveal: `2fc169a5eb2f096bc8e64cb946380869ee2a2099f67cc3d5e719fbe9fff57547`
 
 Explorer (example): `https://mempool.space/testnet/tx/<txid>`
-
-## Archive
-
-Older experiments (including btcaaron variants) live under `code/chapter09-archive/` and are **not** required for the book’s main line.
