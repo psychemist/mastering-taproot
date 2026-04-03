@@ -1,14 +1,1 @@
-# Tools package for Chapter 9
-# This package contains utilities for BRC-20 and ARC-20 operations
-
-
-
-
-
-
-
-
-
-
-
-
+# Shared helpers for Chapter 9 BRC-20 commit / reveal examples.
