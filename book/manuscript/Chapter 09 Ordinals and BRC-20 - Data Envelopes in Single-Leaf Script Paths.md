@@ -1,6 +1,6 @@
 # Chapter 9: Ordinals and BRC-20 — Data Envelopes in Single-Leaf Script Paths
 
-## Why This Chapter Is Here
+## Why This Chapter Matters
 
 Ordinals and BRC-20 generated significant attention in 2023, and a large volume of related transactions exist on mainnet. If you look at their on-chain structure, they turn out to be surprisingly simple: a single-leaf Taproot script path, one commit transaction, one reveal transaction.
 
