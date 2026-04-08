@@ -11,7 +11,7 @@
 - [Chapter 09 — Ordinals and BRC-20: Data Envelopes in Single-Leaf Script Paths](Chapter%2009%20Ordinals%20and%20BRC-20%20-%20Data%20Envelopes%20in%20Single-Leaf%20Script%20Paths.md)
 - [Chapter 10 — RGB: Client-Side Validation & Taproot Commitments](Chapter%2010%20%E2%80%94%20RGB%3A%20Client-Side%20Validation%20%26%20Taproot%20Commitments.md)
 - [Chapter 11 — Lightning Network Channels: From P2WSH Multisig to Taproot Privacy Channels](Chapter%2011%20Lightning%20Network%20Channels%20-%20From%20P2WSH%20Multisig%20to%20Taproot%20Privacy%20Channels.md)
-- [Chapter 12 — Silent Payments: Elliptic Curve Arithmetic and Address Privacy](Chapter%2012%20Silent%20Payments%20-%20Elliptic%20Curve%20Arithmetic%20and%20Address%20Privacy.md)
+- [Chapter 12: Silent Payments — Elliptic Curve Arithmetic and Address Privacy](Chapter%2012%3A%20Silent%20Payments%20%E2%80%94%20Elliptic%20Curve%20Arithmetic%20and%20Address%20Privacy.md)
 
 ## Deep Dives
 
@@ -19,3 +19,4 @@
 - [DD-04 — Transaction Malleability: From DER Encoding to SegWit](deep-dives/DD-04%20Transaction%20Malleability%20-%20From%20DER%20Encoding%20to%20SegWit.md)
 - [DD-05 — Inside Taproot Control Blocks: Merkle Proofs, Ordering Rules and Fee Optimization](deep-dives/DD-05%20Inside%20Taproot%20Control%20Blocks%20-%20Merkle%20Proofs%20Ordering%20Rules%20and%20Fee%20Optimization.md)
 - [DD-08 — Commit-Reveal & Dual-Layer Scripts: Bitcoin's Programming Paradigm](deep-dives/DD-08%20Commit-Reveal%20and%20Dual-Layer%20Scripts%20-%20Bitcoins%20Programming%20Paradigm.md)
+- [DD-11 — One Curve, Many Tweaks: Scalar Commitments from Taproot to Silent Payments](deep-dives/DD-11%20One%20Curve%20Many%20Tweaks%20-%20Scalar%20Commitments%20from%20Taproot%20to%20Silent%20Payments.md)

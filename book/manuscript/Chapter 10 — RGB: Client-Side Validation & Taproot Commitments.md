@@ -1,607 +1,245 @@
-# Chapter 10: RGB - Client-Side Validation & Taproot Commitments
+# Chapter 10: RGB and Tapret — Commitments Inside the Script Tree
 
-## Why This Chapter Matters
+## What RGB Is
 
-RGB represents the most rigorous engineering application of Taproot's commitment capabilities. While Chapter 9 showed how Taproot's witness can store data (Ordinals/BRC-20), RGB demonstrates how Taproot's script-path commitments can anchor **off-chain contract state** with cryptographic guarantees.
+RGB is a smart contract protocol built on top of Bitcoin. Contract state is maintained off-chain and verified by participants themselves (client-side verification); Bitcoin's role is singular — through the spending order of UTXOs, it ensures state transitions are irreversible and cannot be double-spent. Taproot serves as the commitment carrier: with each state transition, RGB embeds a cryptographic commitment inside the script tree of a Taproot output, leaving no readable information on-chain.
 
-From an engineering perspective, this chapter addresses:
+---
 
-- Why Bitcoin cannot execute smart contracts (by design)
-- How Taproot commitments enable cryptographic anchoring without on-chain execution
-- How single-use seals (UTXOs) become state carriers
-- Why client-side validation is more powerful than indexer-based protocols
-- The complete RGB workflow: Invoice → Transfer → Consignment → PSBT → Broadcast
+## Why This Chapter Follows Chapter 9
 
-RGB showcases Taproot's second capability tier: not just storing data, but serving as a **cryptographic notary for off-chain computation**.
+Chapter 9's Ordinals put data into the witness. The VM skips it, the indexer reads it. On-chain there are bytes, structure, decodable content.
 
-## The Problem: Why Bitcoin Cannot Execute Smart Contracts
+RGB does the opposite: nothing is visible on-chain.
 
-Bitcoin's architecture intentionally avoids on-chain contract execution. Understanding why is crucial to appreciating RGB's design.
+The same Taproot transaction, two ordinary P2TR outputs. `getrawtransaction` returns `OP_1 + 32 bytes`, indistinguishable from any key-path spend. The RGB state commitment is hidden inside the script tree. Bitcoin consensus does not execute it, does not interpret it, does not know it exists. Verification happens entirely on the client.
 
-### What Bitcoin Nodes Cannot Do
+This is the dividing line between Chapter 9 and Chapter 10: one stores data on-chain, the other stores a commitment.
 
-Bitcoin nodes cannot:
-- Store arbitrary state
-- Execute arbitrary logic
-- Maintain global contract storage
-- Run Turing-complete programs
-- Support contract-level fees
+---
 
-This is **by design**, not a limitation. Bitcoin's consensus layer must remain:
-- **Minimal**: Every node must verify every transaction
-- **Bounded**: Verification costs must be predictable
-- **Scalable**: The system must handle global transaction volume
+## Tapret: An Unspendable Leaf at Depth 1 of the Script Tree
 
-### RGB's Paradigm Reversal
-
-RGB solves this by reversing the paradigm:
-
-**Nothing is executed on-chain.**
-
-**Everything is verified off-chain.**
-
-**Bitcoin only stores commitments.**
-
-This architectural choice enables:
-- Unlimited contract complexity (off-chain)
-- Predictable on-chain costs (commitment storage only)
-- Scalability (state grows off-chain, not on-chain)
-- Privacy (contract logic never revealed on-chain)
-
-## The Two Tiers of Taproot Applications
-
-Before diving into RGB's mechanics, let's establish a conceptual framework for understanding how protocols use Taproot differently.
-
-### Tier 1: Data Storage (Ordinals/BRC-20)
-
-Chapter 9 covered this tier:
-- Witness stores arbitrary data (images, JSON, etc.)
-- Data is **revealed** when spent
-- Indexers parse and maintain state
-- Simple, but requires trust in indexers
-- Use case: Data storage, simple tokens
-
-### Tier 2: Cryptographic Commitments (RGB)
-
-This chapter covers the second tier:
-- Script-path **commits** to state (not stores it)
-- State is never revealed on-chain
-- Clients verify cryptographically
-- Complex, but trustless
-- Use case: Smart contracts, complex assets
-
-The key distinction: Ordinals stores data **in** the witness; RGB stores a **commitment to** data in the script-path. The actual data lives off-chain and is transmitted via **consignments**.
-
-## Core RGB Concepts
-
-Before examining the workflow, we must understand RGB's foundational concepts.
-
-### Single-Use Seals: UTXOs as State Carriers
-
-This is RGB's key insight:
-
-> **Every RGB contract state is bound to a specific UTXO.**
->
-> **Spending the UTXO = updating the contract state.**
-
-This fits Bitcoin perfectly:
-- Each state transition uses a new UTXO
-- Bitcoin ensures the UTXO cannot be reused (double-spend prevention)
-- The commitment enforces valid transitions (cryptographic proof required)
-
-**State Binding:**
-```
-UTXO A → State S1 (committed via Tapret)
-```
-
-**State Transition:**
-```
-Spend UTXO A → Create UTXO B → State S2 (committed via Tapret)
-```
-
-Bitcoin's role:
-- Ensures UTXO A cannot be spent twice
-- Stores the commitment hash
-- Provides ordering and timestamping
-
-RGB's role:
-- Validates state transition cryptographically
-- Ensures S1 → S2 is valid according to contract rules
-- Maintains state history off-chain
-
-### Consignment: The Proof Bundle
-
-A **consignment** is the off-chain proof bundle that contains:
-- Complete state transition history
-- Cryptographic proofs of validity
-- Anchor transaction references
-- Contract schema and metadata
-
-When Alice transfers tokens to Bob, she doesn't just send a transaction—she sends a **consignment file** that Bob must validate before accepting. This is the essence of client-side validation: the receiver verifies everything cryptographically, trusting no one.
-
-> **Note on History Growth**: Consignments accumulate the full state transition history back to genesis. In multi-hop transfers, each consignment grows as it includes all previous transitions. This is a trade-off: complete verifiability at the cost of increasing consignment size. For high-frequency transfers, techniques like state pruning and checkpointing are being developed.
-
-### Invoice: The Payment Request
-
-An **invoice** is how the receiver requests a specific amount of assets to a specific UTXO. It contains:
-- Contract ID
-- Interface type (e.g., RGB20Fixed)
-- Amount requested
-- Destination UTXO (blinded or explicit)
-
-The sender uses this invoice to construct the transfer.
-
-### Tapret and Opret Commitments
-
-RGB supports two commitment schemes for anchoring state transitions:
-
-**Tapret (Taproot-based)**: Embeds a 64-byte commitment as an unspendable script leaf in the Taproot script tree. The commitment is placed at the first level of the script tree, invisible until the UTXO is spent via script-path.
+RGB supports two commitment schemes. Opret places the commitment in an OP_RETURN transaction output — 34 bytes, visible on-chain (in this chapter **MPC** stands for **Multi-Protocol Commitments**, not the cryptographic Multi-Party Computation sharing the same abbreviation):
 
 ```
-Taproot Output
-├── Key Path: Normal spending
-└── Script Path (Level 1):
-    ├── Tapret Commitment (64 bytes, unspendable)
-    └── Other scripts (shifted to Level 2+)
+Opret (transaction output):
+  scriptPubKey: OP_RETURN OP_PUSHBYTES_32 <32-byte MPC commitment>
+  value: 0 sats
 ```
 
-**Opret (OP_RETURN-based)**: Places a 34-byte commitment in the first OP_RETURN output. Useful for older hardware that doesn't support Taproot.
+Tapret is different — the commitment is not placed in an output, but inside a leaf node of the Taproot script tree:
 
-Most modern RGB implementations use Tapret because:
-- Better privacy (commitment hidden in script tree)
-- Smaller on-chain footprint when not revealed
-- Compatible with existing Taproot scripts
+```
+Tapret leaf script (64 bytes, leaf version 0xC0):
+  50 50 ... 50              ← 29 bytes OP_RESERVED (0x50)
+  6A                        ← OP_RETURN
+  21                        ← OP_PUSHBYTES_33
+  <32-byte MPC commitment>
+  <1-byte nonce>
+```
 
-Bitcoin sees only a normal Taproot address. The RGB commitment is invisible until the UTXO is spent, and even then, only the commitment hash is revealed—not the actual state data.
+The OP_RETURN inside the leaf makes it unspendable. But this leaf is not a transaction output — it lives inside the script tree, invisible from the outside.¹
 
-## RGB Workflow: From Invoice to Confirmation
+**Insertion position** (LNPBP-12 specification): depth 1, placed at the rightmost position in BIP-341 lexicographic order. Depth 0 is the Merkle root; depth 1 is the root's direct children. Any existing spendable scripts are pushed one level deeper.
 
-Let's trace through a complete RGB20 token transfer using actual CLI commands.
+For a single existing script Script_A:
 
-### Environment Setup
+```
+Before:                        After:
 
-This workflow uses the bitlight-local-env development environment with RGB CLI v0.11.x. CLI syntax may vary between versions—always check the [RGB GitHub](https://github.com/RGB-Tools) for the latest documentation.
+      P                               P'   ← different tweaked key
+      |                               |
+  merkle_root                    merkle_root'
+      |                           /           \
+   Script_A               Script_A         Tapret_Leaf
+  (depth 1)               (depth 2)        (depth 1)
+                                        unspendable, contains MPC commitment
+```
+
+The Merkle root changes, the output key changes with it, but the on-chain appearance remains a standard P2TR address. The RGB client fetches the txid, locates the output, finds the Tapret leaf at the rightmost position of depth 1 per the specification, extracts the MPC commitment, and verifies the state transition.
+
+The name `tapret1st` comes from LNPBP-12: `tapret` is the commitment scheme name, `1st` corresponds to depth 1 (counting from 0, where the root is 0).
+
+---
+
+## On-Chain Example: Testnet Transfer Transaction
+
+The following experiment runs on Bitcoin testnet — Alice transfers 100 units of an RGB20 asset to Bob.
+
+**Transfer transaction**: [64a14551...c20b6b](https://mempool.space/testnet/tx/64a1455125724ce79d4914d7af5e0226f465c7522b8dd6f048440b8935c20b6b)
+
+On mempool.space:
+
+- Features: SegWit, Taproot, RBF
+- 1 input, 2 outputs
+- vout:0: `tb1pd057tgt4u38ur4znyszme79l...jq02w5v`, V1_P2TR
+- vout:1: `tb1p9yjaffzhuh9p7d9gnwfunxssn...hqellhrw`, V1_P2TR
+
+Both outputs are standard P2TR. No RGB trace on-chain. Run `code/chapter10/02_verify_tx_onchain.py` to verify directly:
 
 ```bash
-# Clone and start the environment
-git clone https://github.com/bitlightlabs/bitlight-local-env-public
-cd bitlight-local-env-public
-docker-compose up -d
-
-# Verify services
-curl http://localhost:3002/blocks/tip/height  # Esplora API
-```
-
-The environment provides:
-- Bitcoin Core (regtest mode)
-- Electrs/Esplora indexer (port 3002)
-- Pre-configured wallets (Alice, Bob)
-
-### Step 1: Contract Deployment (One-Time Setup)
-
-Before any transfers, someone must deploy the RGB20 contract:
-
-```bash
-# Alice deploys the contract
-rgb -d .alice -n regtest import ./contracts/rgb20-simplest.rgb \
-    --esplora="http://localhost:3002"
-
-# Verify contract import
-rgb -d .alice -n regtest state <CONTRACT_ID> RGB20Fixed \
-    --esplora="http://localhost:3002"
-```
-
-The contract specifies:
-- Token name and ticker
-- Total supply (fixed for RGB20Fixed)
-- Initial owner (Alice's UTXO)
-
-### Step 2: Bob Generates Invoice
-
-Bob wants to receive 500 tokens. He generates an invoice specifying:
-- The contract he wants tokens from
-- The interface type (RGB20Fixed)
-- The amount (500)
-- His receiving UTXO
-
-```bash
-# Bob generates invoice for 500 tokens
-rgb -d .bob -n regtest invoice \
-    <CONTRACT_ID> \
-    RGB20Fixed \
-    500 \
-    --esplora="http://localhost:3002"
+python3 02_verify_tx_onchain.py 64a1455125724ce79d4914d7af5e0226f465c7522b8dd6f048440b8935c20b6b
 ```
 
 Output:
+
 ```
-rgb:BppYGUUL-Qboz3UD-czwAaVV-!!Jkr1a-SE1!m1f-Cz$b0xs/RGB20Fixed/500+utxob:
-egXsFnw-E1z4Cng-NKV3r1J-BH42m7P-CpLTXYa-LQFVM5Y
-```
+vout[0]  type=v1_p2tr  value=600 sats   tb1pd057...
+vout[1]  type=v1_p2tr  value=2000 sats  tb1p9yja...
 
-This invoice is sent to Alice off-chain (via any channel: email, messaging, Lightning, etc.).
-
-### Step 3: Alice Creates Transfer
-
-Alice uses Bob's invoice to create the transfer. This generates two outputs:
-- A **consignment file** (proof bundle for Bob)
-- A **PSBT** (Partially Signed Bitcoin Transaction)
-
-```bash
-# Alice creates transfer based on Bob's invoice
-rgb -d .alice -n regtest transfer \
-    "<BOB_INVOICE>" \
-    transfer_to_bob.consignment \
-    --esplora="http://localhost:3002"
+All outputs are P2TR. No OP_RETURN. Indistinguishable from a normal Taproot spend.
 ```
 
-Output:
+**Bob's state after the transfer** (RGB client output):
+
 ```
-Transfer created successfully.
-Consignment: transfer_to_bob.consignment
-PSBT: transfer_to_bob.psbt
-```
-
-At this point:
-- The consignment contains the complete proof of Alice's ownership and the state transition
-- The PSBT contains the Bitcoin transaction that will anchor the new state
-- Neither has been broadcast yet
-
-### Step 4: Bob Validates and Accepts Consignment
-
-Bob receives the consignment file and must validate it before accepting:
-
-```bash
-# Bob validates the consignment
-rgb -d .bob -n regtest validate \
-    transfer_to_bob.consignment \
-    --esplora="http://localhost:3002"
+Owned:
+  State         Seal                                                   Witness
+  assetOwner:
+          100   bc:tapret1st:64a14551...c20b6b:1   bc:64a14551...c20b6b
+                                                   (bitcoin:4909164, 2026-04-04 03:49:34)
 ```
 
-Output:
+Field-by-field breakdown:
+
+| Field | Value | Meaning |
+|-------|-------|---------|
+| `100` | 100 | Bob's current asset balance |
+| `bc:tapret1st:` | prefix | Commitment scheme: Bitcoin testnet, Tapret, depth 1 |
+| `64a14551...c20b6b:1` | txid:vout | Commitment anchored to vout:1 of this transaction |
+| `bc:64a14551...c20b6b` | witness | On-chain anchor txid |
+| `bitcoin:4909164` | block height | Height at which the transaction was confirmed |
+
+The seal `tapret1st:64a14551...c20b6b:1` points to vout:1 visible on mempool — a standard P2TR output. The Tapret leaf inside the script tree does not appear on mempool; it exists in the RGB client's consignment data.
+
+**Seal lifecycle**
+
+Genesis seal (closed):
+
 ```
-Consignment is valid.
-```
-
-If valid, Bob accepts:
-
-```bash
-# Bob accepts the consignment
-rgb -d .bob -n regtest accept \
-    transfer_to_bob.consignment \
-    --esplora="http://localhost:3002"
-```
-
-**What Bob's client validates:**
-- Alice's UTXO exists and commits to the claimed state
-- The state transition follows RGB20Fixed rules
-- Token amounts are conserved
-- All cryptographic signatures are valid
-- No double-spend (the UTXO hasn't been spent elsewhere)
-
-This is **client-side validation**: Bob verifies everything himself, trusting no indexer or third party.
-
-### Step 5: Alice Signs and Broadcasts PSBT
-
-After Bob accepts, Alice signs the Bitcoin transaction:
-
-```bash
-# Sign the PSBT (using bitcoin-cli or Sparrow)
-bitcoin-cli -rpcwallet=alice signrawtransactionwithwallet \
-    $(cat transfer_to_bob.psbt | base64 -d | xxd -p | tr -d '\n')
-
-# Or using Sparrow Wallet for hardware wallet signing
-# File → Open Transaction → Select PSBT → Sign → Broadcast
+22d13f86...5d2a:0  →  1,000,000 units  →  spent
 ```
 
-Then broadcast:
+This transfer opens two new seals, both anchored to the same transaction:
 
-```bash
-# Broadcast the signed transaction
-bitcoin-cli sendrawtransaction <signed_tx_hex>
+```
+Transfer transaction: 64a14551...c20b6b
+  vout:0  →  tapret1st:...:0  →  999,900 (Alice's change)
+  vout:1  →  tapret1st:...:1  →  100     (Bob's receipt)
 
-# Mine a block (regtest only)
-bitcoin-cli generatetoaddress 1 <mining_address>
+Conservation check: 999,900 + 100 = 1,000,000 ✓
 ```
 
-### Step 6: Verify Final State
+The old seal closes; the new transaction opens two new seals, each corresponding to a P2TR output whose script tree hides a Tapret commitment.
 
-Both parties verify the transfer completed:
+---
 
-```bash
-# Alice checks her balance
-rgb -d .alice -n regtest state <CONTRACT_ID> RGB20Fixed \
-    --esplora="http://localhost:3002"
+## Code: Six-Step Transfer Flow
 
-# Bob checks his balance  
-rgb -d .bob -n regtest state <CONTRACT_ID> RGB20Fixed \
-    --esplora="http://localhost:3002"
+This chapter's experiment depends on the RGB CLI and an Esplora indexer. Environment setup is in `code/chapter10/README.md`. Below is the core calling pattern.
+
+`01_rgb_transfer_single_hop.py` breaks the transfer into six steps, each mapping to a phase in the chapter:
+
+```python
+def _rgb(wallet_dir: str, *args: str) -> str:
+    """Call the rgb CLI and return stdout."""
+    cmd = [rgb_bin, "-d", wallet_dir, "-n", network,
+           *args, "--sync", f"--esplora={esplora}"]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    return proc.stdout
 ```
 
-**Result:**
-- Alice: Previous balance minus 500
-- Bob: Previous balance plus 500 (bound to new UTXO)
+Each step calls the CLI through this wrapper. `--sync` ensures the wallet state is synchronized with the chain before every operation.
 
-## What Bitcoin Sees vs. What RGB Sees
+**Bob's complete output after transfer**:
 
-This distinction is crucial for understanding RGB's architecture.
-
-### Bitcoin's View
-
-Bitcoin only sees:
 ```
-Transaction:
-  Input: Alice's UTXO (spent)
-  Output 0: Bob's new UTXO (Taproot address)
-  Output 1: Alice's change UTXO (Taproot address)
-```
+Global:
+  spec := ticker "TNW022", name "Testnet Workflow Asset", ...
+  issuedSupply := 1000000
 
-The transaction looks like any normal Taproot payment. There is:
-- No token data visible
-- No contract logic visible
-- No indication this is an RGB transaction
-- Just a standard Bitcoin transaction with Taproot outputs
-
-### RGB's View
-
-RGB sees (via consignment):
-```
-State Transition:
-  Input State: Alice owns 10000 tokens (bound to her old UTXO)
-  Output State 0: Bob owns 500 tokens (bound to his new UTXO)
-  Output State 1: Alice owns 9500 tokens (bound to her change UTXO)
-  Proof: Cryptographic proof of valid transition
-  Anchor: Bitcoin transaction ID
+Owned:
+  State         Seal                                                                            Witness
+  assetOwner:
+          100   bc:tapret1st:64a1455125724ce79d4914d7af5e0226f465c7522b8dd6f048440b8935c20b6b:1
+                bc:64a1455125724ce79d4914d7af5e0226f465c7522b8dd6f048440b8935c20b6b
+                (bitcoin:4909164, 2026-04-04 03:49:34)
 ```
 
-The entire token logic exists off-chain, with Bitcoin providing only the anchor.
+**Alice's complete state (`-a` flag)**:
 
-## RGB vs. Ordinals/BRC-20: Architectural Comparison
-
-| Feature | Ordinals/BRC-20 | RGB |
-|---------|-----------------|-----|
-| **Data Location** | Witness (on-chain, revealed) | Off-chain (consignment files) |
-| **On-Chain Footprint** | Full data stored | Only commitment hash |
-| **Verification** | Indexer (trusted) | Client-side (cryptographic) |
-| **State Model** | Satoshi-based | UTXO-based contract state |
-| **Trust Model** | Trust indexer consensus | Verify cryptographically |
-| **Privacy** | Data revealed on spend | Data never on-chain |
-| **Scalability** | Limited by block space | Unlimited (off-chain state) |
-| **Recovery** | Depends on indexer | Consignment history |
-| **Transmission** | On-chain (block space) | Off-chain (requires secure channel) |
-
-### The Trade-offs
-
-**Ordinals/BRC-20**: Simpler architecture, but limited by block space and indexer trust.
-
-**RGB**: Superior scalability and privacy, but requires:
-- Secure off-chain channels for consignment transmission
-- Users to manage consignment files (backup, storage)
-- Ecosystem tooling for wallet and application support
-
-### The Indexer Trust Problem
-
-BRC-20's correctness depends on which indexer you trust:
-- Different indexers may disagree on balances
-- Cursed inscriptions caused indexer divergence
-- No on-chain arbitration mechanism
-
-RGB eliminates this entirely:
-- Every client validates independently
-- State transitions are cryptographically provable
-- No indexer consensus required
-
-## Asset Recovery: Consignment as State History
-
-One of RGB's most powerful features is **state recovery via consignments**.
-
-### The Recovery Principle
-
-Since all state transitions are recorded in consignments:
-- If you have the consignment history, you can reconstruct your state
-- No need to trust any indexer or third party
-- State is recoverable even if your local database is corrupted
-
-### Recovery Workflow
-
-> **Important**: Consignments must be re-accepted in **chronological order** (oldest first) to correctly rebuild the state history. Out-of-order acceptance will fail validation.
-
-```bash
-# Alice loses her local RGB state but has consignment backups
-
-# Re-import the contract
-rgb -d .alice_recovered -n regtest import ./contracts/rgb20-simplest.rgb \
-    --esplora="http://localhost:3002"
-
-# Re-accept historical consignments IN CHRONOLOGICAL ORDER
-rgb -d .alice_recovered -n regtest accept alice_issuance.consignment \
-    --esplora="http://localhost:3002"
-
-rgb -d .alice_recovered -n regtest accept bob_to_alice_refund.consignment \
-    --esplora="http://localhost:3002"
-
-# State is now reconstructed
-rgb -d .alice_recovered -n regtest state <CONTRACT_ID> RGB20Fixed \
-    --esplora="http://localhost:3002"
+```
+Owned:
+  State         Seal                                                   Witness
+  assetOwner:
+       999900   bc:tapret1st:64a14551...c20b6b:0  ...  -- third-party
+          100   bc:tapret1st:64a14551...c20b6b:1  ...  -- third-party
+      1000000   bc:tapret1st:22d13f86...5d2a:0    ~    -- spent
 ```
 
-This is fundamentally different from BRC-20:
-- BRC-20: If indexers disagree, there's no authoritative source
-- RGB: Consignment history is the authoritative source, verifiable by anyone
+`third-party` is not an error. The state transition is valid at the protocol level, amounts are conserved, and Bob correctly received 100. `third-party` is a wallet descriptor scope issue: the client can see these seals exist, but cannot identify them as Alice's currently spendable state. This is a property of the client view layer, not an RGB protocol problem.
 
-## Exercise: Multi-Hop Transfer (Alice → Bob → Dave)
+---
 
-To solidify your understanding, complete this exercise that extends the basic transfer to a three-party scenario.
+## What Bitcoin Sees vs What the RGB Client Sees
 
-### Setup
+```
+On-chain (visible to anyone):
+  tx 64a14551...c20b6b
+  ├── vout:0  →  P2TR address tb1pd057...  (600 sats)
+  └── vout:1  →  P2TR address tb1p9yja...  (2,000 sats)
+  No OP_RETURN output. No RGB marker of any kind.
 
-1. Create Dave's wallet:
-```bash
-# In bitlight-local-env
-make dave-cli
-
-# Create RGB wallet for Dave
-rgb -d .dave -n regtest create default --tapret-key-only \
-    "<DAVE_XPUB>" \
-    --esplora="http://localhost:3002"
-
-# Import the contract
-rgb -d .dave -n regtest import ./contracts/rgb20-simplest.rgb \
-    --esplora="http://localhost:3002"
+RGB client (requires consignment to parse):
+  vout:0 script tree, depth 1: Tapret leaf
+    → MPC commitment → Alice's change, 999,900 units
+  vout:1 script tree, depth 1: Tapret leaf
+    → MPC commitment → Bob's receipt, 100 units
 ```
 
-2. Fund Dave with Bitcoin (for UTXO):
-```bash
-# Send 1 BTC to Dave's address
-bitcoin-cli -rpcwallet=core sendtoaddress <dave_address> 1
-bitcoin-cli generatetoaddress 1 <mining_address>
+Bitcoin consensus validates the signature and transaction format. The Tapret leaf sits inside the script tree, is never executed, and has no effect on consensus. An external observer cannot distinguish this transaction from an ordinary Taproot transfer.
+
+Comparison with Chapter 9:
+
+| | Ordinals/BRC-20 | RGB/Tapret |
+|---|---|---|
+| Commitment location | Witness (visible after reveal) | Script tree leaf (never visible) |
+| On-chain data | Present (JSON in witness) | None |
+| Verifier | Off-chain indexer | RGB client, client-side verification |
+| Trust model | Depends on indexer consensus | Client verifies independently |
+
+---
+
+## How Tapret Changes the Output Key
+
+Inserting a Tapret leaf into the script tree changes the Merkle root, which feeds directly into the Chapter 5 formula:
+
+```
+t = HashTapTweak(internal_key || merkle_root)
+Q = internal_key + t × G
 ```
 
-### Transfer: Bob → Dave
+The output key `Q` is the on-chain Taproot address. The tweak `t` now encodes an RGB state commitment rather than a spending condition, but `Q` is indistinguishable from any other Taproot key. There is no way to tell whether a tweak came from a spendable script tree or an unspendable Tapret leaf.
 
-3. Dave generates invoice:
-```bash
-rgb -d .dave -n regtest invoice <CONTRACT_ID> RGB20Fixed 200 \
-    --esplora="http://localhost:3002"
-```
+`code/chapter10/03_tapret_leaf.py` constructs the 64-byte leaf in pure Python and prints the structure byte by byte — no RGB CLI required, anyone can run it.
 
-4. Bob creates transfer:
-```bash
-rgb -d .bob -n regtest transfer "<DAVE_INVOICE>" \
-    bob_to_dave.consignment \
-    --esplora="http://localhost:3002"
-```
+**Effect on wallet identification:** The output's owner must store the tweak value alongside the HD derivation path. Without it, the wallet cannot recompute `Q` from the internal key and cannot recognize that output as its own. In RGB wallet implementations, these tweaks are stored in a mapping (`descriptor.toml`) keyed by the HD terminal path (for example `&10/19`). If this mapping is lost, outputs appear as third-party — the funds are not gone (the private key still exists) but the wallet cannot identify them.
 
-5. Dave validates and accepts:
-```bash
-rgb -d .dave -n regtest validate bob_to_dave.consignment \
-    --esplora="http://localhost:3002"
+This is a general Taproot property, not specific to RGB: any protocol that inserts non-standard leaves into the script tree must persist the tweak-to-key mapping for the output owner to maintain spendability.
 
-rgb -d .dave -n regtest accept bob_to_dave.consignment \
-    --esplora="http://localhost:3002"
-```
+---
 
-6. Bob signs and broadcasts PSBT, then verify:
-```bash
-# Sign, broadcast, mine block
+## Chapter Summary
 
-# Verify all balances
-rgb -d .alice -n regtest state <CONTRACT_ID> RGB20Fixed --esplora="http://localhost:3002"
-rgb -d .bob -n regtest state <CONTRACT_ID> RGB20Fixed --esplora="http://localhost:3002"
-rgb -d .dave -n regtest state <CONTRACT_ID> RGB20Fixed --esplora="http://localhost:3002"
-```
+RGB uses Tapret to hide state commitments inside the Taproot script tree at depth 1. The leaf contains OP_RETURN making it unspendable, has a fixed length of 64 bytes, and its position is specified by the LNPBP-12 standard. The on-chain output is a standard P2TR address; the Tapret leaf changes the Merkle root and output key as part of the script tree, but is invisible to external observers.
 
-### What This Exercise Demonstrates
+A seal is the binding point between RGB state and a specific UTXO. When a UTXO is spent the old seal closes; the new transaction opens new seals on its outputs — one for change, one for the recipient. Amount conservation is verified by the RGB client from consignment data, with no indexer involved.
 
-- **Multi-hop capability**: Tokens can flow through arbitrary transfer paths
-- **Client-side validation scales**: Each party validates only what they receive
-- **UTXO consolidation**: RGB can merge multiple UTXOs during transfer
-- **Complete audit trail**: Dave's consignment contains the full history back to issuance
-- **Consignment growth**: Notice that Dave's consignment is larger than Bob's, as it includes both Alice→Bob and Bob→Dave transitions
+Tapret exploits the Merkle commitment structure of the Taproot script tree — no script is executed, no path is spent. A leaf is inserted into the tree, and the output key silently carries a state anchor invisible to any external observer. RGB introduces no new transaction format and changes no consensus rules; it relies on a property already present in BIP-341: the script tree determines the output key.
 
-> **Production Note**: For mainnet or testnet with real value, use hardware wallets (e.g., Sparrow Wallet with Ledger/Trezor) for PSBT signing. Never expose private keys in CLI for production assets.
+The next chapter covers Taproot channels in the Lightning Network: also Taproot outputs, but with a completely different commitment structure and update mechanism — channel state is held symmetrically off-chain and only surfaces on-chain in the event of a dispute.
 
-## Advanced: RGB v0.12 with Testnet
+---
 
-For production-like testing, RGB v0.12 supports Bitcoin testnet with Sparrow Wallet integration.
-
-### Environment
-
-```bash
-# Bitcoin Core testnet (lightmode for faster sync)
-bitcoind -testnet -lightmode
-
-# Electrs indexer
-electrs --network testnet --electrum-rpc-addr 127.0.0.1:60001
-
-# RGB CLI v0.12
-rgb --version  # Should show v0.12.x
-```
-
-### Contract Issuance (v0.12 YAML Format)
-
-RGB v0.12 uses YAML configuration for contract issuance:
-
-```yaml
-# aarontest_issue.yaml
-consensus: bitcoin
-testnet: true
-issuer:
-  codexId: 7C15w3W1-L0T~zXw-Aeh5~kV-Zquz729-HXQFKQW-_5lX9O8
-  version: 0
-  checksum: AYkSrg
-name: AARONTEST
-method: issue
-timestamp: "2025-09-01T19:30:00+00:00"
-global:
-  - name: ticker
-    verified: ATEST
-  - name: name
-    verified: AARON Test Token
-  - name: precision
-    verified: centiMilli
-  - name: issued
-    verified: 10000
-owned:
-  - name: balance
-    seal: <YOUR_UTXO_TXID>:<VOUT>
-    data: 10000
-```
-
-Key findings from v0.12 experimentation:
-- Avoid special characters (hyphens, underscores) in contract names to prevent parsing issues
-- `seal` must reference a UTXO you control
-- Issuance is purely off-chain, bound to existing UTXO
-- Sparrow Wallet works well for PSBT signing
-
-## Engineering Summary: Taproot as Cryptographic Notary
-
-RGB demonstrates Taproot's highest capability tier.
-
-### The Architectural Innovation
-
-**Traditional Smart Contracts (Ethereum):**
-```
-On-chain execution → Global state → High costs → Limited scalability
-```
-
-**RGB (Bitcoin + Taproot):**
-```
-Off-chain execution → Cryptographic commitments → Low costs → Unlimited scalability
-```
-
-### What Taproot Provides to RGB
-
-1. **Tapret Commitments**: Embed state commitments in script-path without revealing data
-2. **Address Uniformity**: RGB transactions look identical to normal Taproot payments
-3. **Single-Use Seals**: UTXOs become cryptographically-bound state carriers
-4. **Privacy Preservation**: Contract logic never appears on-chain
-
-### Why This Matters
-
-RGB proves that Bitcoin + Taproot can support:
-- Complex smart contracts (off-chain logic, on-chain anchoring)
-- Trustless verification (client-side validation, no indexers)
-- Unlimited scalability (state grows off-chain)
-- Strong privacy (only commitments on-chain)
-- Recoverable state (consignment history)
-
-## Conclusion
-
-RGB represents the most rigorous engineering application of Taproot's commitment capabilities. It demonstrates:
-
-1. **Client-Side Validation**: All contract logic verified off-chain, cryptographically
-2. **Single-Use Seals**: UTXOs become state carriers, perfectly aligned with Bitcoin's model
-3. **Consignment-Based Transfer**: Proof bundles transmitted off-chain, anchored on-chain
-4. **Trustless Architecture**: No indexers, no third parties, verify everything yourself
-5. **Recoverable State**: Consignment history enables state reconstruction
-
-While Ordinals/BRC-20 showed how Taproot's witness can store data (Tier 1), RGB shows how Taproot's script-path commitments can anchor complex off-chain computation with cryptographic guarantees (Tier 2).
-
-The engineering reality: Taproot didn't make Bitcoin "do smart contracts" on-chain. Taproot provided cryptographic commitment capabilities, and RGB discovered how to use these capabilities to build a trustless, scalable, privacy-preserving smart contract system that perfectly aligns with Bitcoin's architecture.
-
-> **Ecosystem Note**: While RGB offers superior scalability and privacy compared to indexer-based protocols, its adoption depends on ecosystem tooling—wallets that support consignment handling, secure transmission channels, and user-friendly interfaces for state management. As of 2025, this ecosystem is maturing rapidly with tools like Bitlight, MyCitadel, and integration with Lightning Network via Bifrost.
-
-**Taproot = Bitcoin's cryptographic notary for off-chain computation.**
-
-RGB is the most rigorous implementation of this paradigm.
+¹ The Tapret leaf structure in this chapter follows the current RGB implementation (rgb-wallet 0.11.0-beta.9), verified against PSBT output on testnet and consistent with [RGB Docs: Tapret](https://docs.rgb.info/commitment-layer/deterministic-bitcoin-commitments-dbc/tapret). The original LNPBP-12 draft describes a slightly different byte layout; both produce a 64-byte unspendable leaf. If you are using a different RGB version, decode your own PSBT output to verify the actual structure — details and the comparison are in `code/chapter10/README.md`.
