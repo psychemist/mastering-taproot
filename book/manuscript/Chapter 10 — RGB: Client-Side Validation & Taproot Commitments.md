@@ -6,7 +6,7 @@ RGB is a smart contract protocol built on top of Bitcoin. Contract state is main
 
 ---
 
-## Why This Chapter Follows Chapter 9
+## Why This Chapter Matters
 
 Chapter 9's Ordinals put data into the witness. The VM skips it, the indexer reads it. On-chain there are bytes, structure, decodable content.
 
