@@ -1,0 +1,7 @@
+.DS_Store
+__pycache__/
+*.pyc
+venv/
+
+# Local review copy; not published with the repo (see README.zh.md header).
+README.zh.md

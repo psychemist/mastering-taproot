@@ -1,0 +1,2 @@
+# Chapter 10 scripts use only the Python standard library.
+# No pip install required. Python 3.9+.
