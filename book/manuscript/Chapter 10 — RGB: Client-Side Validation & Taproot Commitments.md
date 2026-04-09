@@ -39,9 +39,9 @@ Tapret leaf script (64 bytes, leaf version 0xC0):
   <1-byte nonce>
 ```
 
-The OP_RETURN inside the leaf makes it unspendable. But this leaf is not a transaction output — it lives inside the script tree, invisible from the outside.¹
+The OP_RETURN inside the leaf terminates script execution immediately and fails, making it permanently unspendable. But this leaf is not a transaction output — it lives inside the script tree, invisible from the outside.¹
 
-**Insertion position** (LNPBP-12 specification): depth 1, placed at the rightmost position in BIP-341 lexicographic order. Depth 0 is the Merkle root; depth 1 is the root's direct children. Any existing spendable scripts are pushed one level deeper.
+**Insertion position** (LNPBP-12 specification): depth 1, placed at the rightmost position in BIP-341 lexicographic order. Depth 0 is the Merkle root; depth 1 is the root's direct children. The existing script becomes the left sibling at depth 1; Tapret is inserted as the right sibling at depth 1.
 
 For a single existing script Script_A:
 
@@ -53,13 +53,19 @@ Before:                        After:
   merkle_root                    merkle_root'
       |                           /           \
    Script_A               Script_A         Tapret_Leaf
-  (depth 1)               (depth 2)        (depth 1)
+  (depth 0, only leaf)    (depth 1)        (depth 1, rightmost)
                                         unspendable, contains MPC commitment
 ```
 
 The Merkle root changes, the output key changes with it, but the on-chain appearance remains a standard P2TR address. The RGB client fetches the txid, locates the output, finds the Tapret leaf at the rightmost position of depth 1 per the specification, extracts the MPC commitment, and verifies the state transition.
 
 The name `tapret1st` comes from LNPBP-12: `tapret` is the commitment scheme name, `1st` corresponds to depth 1 (counting from 0, where the root is 0).
+
+---
+
+## Seals: Binding State to a UTXO
+
+RGB uses single-use seals to bind state to a specific UTXO. A seal points to a particular transaction output (txid:vout). When that UTXO is spent, the seal closes and the state transition is complete and irreversible. New seals open on the outputs of the new transaction, carrying the next state forward. The seal mechanism works like this: whoever holds the UTXO holds the state — Bitcoin's double-spend protection becomes RGB's double-spend protection.
 
 ---
 
@@ -71,8 +77,6 @@ The following experiment runs on Bitcoin testnet — Alice transfers 100 units o
 
 On mempool.space:
 
-- Features: SegWit, Taproot, RBF
-- 1 input, 2 outputs
 - vout:0: `tb1pd057tgt4u38ur4znyszme79l...jq02w5v`, V1_P2TR
 - vout:1: `tb1p9yjaffzhuh9p7d9gnwfunxssn...hqellhrw`, V1_P2TR
 
@@ -232,7 +236,7 @@ This is a general Taproot property, not specific to RGB: any protocol that inser
 
 ## Chapter Summary
 
-RGB uses Tapret to hide state commitments inside the Taproot script tree at depth 1. The leaf contains OP_RETURN making it unspendable, has a fixed length of 64 bytes, and its position is specified by the LNPBP-12 standard. The on-chain output is a standard P2TR address; the Tapret leaf changes the Merkle root and output key as part of the script tree, but is invisible to external observers.
+RGB uses Tapret to hide state commitments inside the Taproot script tree at depth 1. The OP_RETURN inside the leaf terminates script execution immediately and fails, making the leaf permanently unspendable; it has a fixed length of 64 bytes and its position is specified by the LNPBP-12 standard. The on-chain output is a standard P2TR address; the Tapret leaf changes the Merkle root and output key as part of the script tree, but is invisible to external observers.
 
 A seal is the binding point between RGB state and a specific UTXO. When a UTXO is spent the old seal closes; the new transaction opens new seals on its outputs — one for change, one for the recipient. Amount conservation is verified by the RGB client from consignment data, with no indexer involved.
 
