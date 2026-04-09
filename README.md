@@ -37,15 +37,13 @@ This project is intended for:
 
 ### Status
 
-This is an active public draft. The full 12-chapter structure is now published.
+The **book text and figures** can still change. The **code under [`code/`](./code/)** for all **12 chapters** is **complete and stable**: each folder has Python scripts, a README, and—if a flow needs the network—notes for reproducing it on **testnet**.
 
 | Chapters | Manuscript | Code | Maturity |
 |----------|-----------|------|----------|
-| Ch 1–8 | ✅ Published | ✅ Tested & published | **Stable** — all code tested on testnet |
-| Ch 9 | ✅ Published | ✅ Published | **Stable** — code tested on testnet |
-| Ch 10–12 | ✅ Published | 📝 In progress | **Draft** — structure and narrative complete; code examples in manuscripts not yet fully tested. Issues and PRs welcome. |
-
-The framework-first, code-iterative approach: the complete narrative arc from private keys to Silent Payments is in place. Code for Chapters 10–12 will be refined and uploaded incrementally.
+| Ch 1–8 | ✅ Published | ✅ Tested & published | **Stable** — examples verified on testnet |
+| Ch 9 | ✅ Published | ✅ Tested & published | **Stable** — examples verified on testnet |
+| Ch 10–12 | ✅ Published | ✅ Tested & published | **Stable** — Tapret / RGB tooling, MuSig2-style cooperative close, and Silent Payments; setup and reference txids are in each chapter README |
 
 ⸻
 
@@ -77,8 +75,7 @@ mastering-taproot/
 │   ├── manuscript/        # 12 chapters (English)
 │   └── translations/      # Community translations
 ├── code/
-│   ├── chapter01/–09/     # Runnable Python examples
-│   └── (each chapter has README + requirements.txt)
+│   ├── chapter01/–12/    # Runnable Python examples (README + requirements.txt each)
 ├── images/                # Cover art
 └── LICENSES/              # CC-BY-SA 4.0 (text) + MIT (code)
 ```
@@ -89,7 +86,7 @@ Manuscripts (12 chapters):
 Table of contents:  
 [`book/manuscript/SUMMARY.md`](./book/manuscript/SUMMARY.md)
 
-Code examples (Ch 1–9 published):  
+Code examples (Chapters 1–12):  
 [`code/`](./code/)
 
 ---
@@ -159,7 +156,9 @@ For chapters, code releases, and script changes: [CHANGELOG.md](CHANGELOG.md)
 
 Upcoming work:
 
-• Code examples for Chapters 10–12 (incremental uploads as they reach testnet-verified stability)
+• Manuscript polish (wording, diagrams, cross-links)  
+• Optional extra reproducible testnet transactions and README notes where they help readers  
+• Issue-driven fixes and small improvements across all chapters
 
 ---
 
