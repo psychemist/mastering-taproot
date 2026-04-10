@@ -137,7 +137,7 @@ The resulting `c9688c...` is the x-coordinate of the aggregate key. Neither part
 
 ### BIP86 Funding Output
 
-The aggregate key still needs a BIP86 tweak, which proves to any verifier that this output has no hidden script path — it can only be spent via key path, requiring both parties to cooperate:
+The aggregate key still needs a BIP86 tweak. This lets both channel parties verify that the funding output is a key-path-only Taproot output, rather than one that secretly commits to an extra script path:
 
 ```python
 def bip86_tweak(xonly_agg: bytes) -> bytes:
@@ -316,6 +316,6 @@ Witness savings           —                  70%
 
 Lightning Network Taproot channels replace P2WSH 2-of-2 multisig with MuSig2 key aggregation and a BIP86 key-only funding output. The cooperative close — the dominant channel closing method — produces a single 64-byte Schnorr signature, indistinguishable from any ordinary Taproot payment. P2WSH exposes the complete multisig script and two separate signatures; Taproot reveals nothing.
 
-MuSig2 (BIP 327) enables two parties to jointly control a single public key without either seeing the other's private key. The four-round signing protocol (NonceGen → NonceAgg → PartialSign → SigAgg) produces a standard 64-byte Schnorr signature on-chain. The BIP86 tweak proves to any verifier that the funding output has no hidden script path, requiring both parties to cooperate to spend.
+MuSig2 (BIP 327) enables two parties to jointly control a single public key without either seeing the other's private key. The four-round signing protocol (NonceGen → NonceAgg → PartialSign → SigAgg) produces a standard 64-byte Schnorr signature on-chain. The BIP86 tweak lets both channel parties confirm that the funding output is key-path-only, rather than one that quietly commits to a hidden script path.
 
 P2WSH made the channel structure legible to any observer. Taproot makes it invisible. The funding output, the cooperative close, the witness — none of it distinguishes a Lightning channel from an ordinary single-key payment.
