@@ -52,7 +52,8 @@ The **book text and figures** can still change. The **code under [`code/`](./cod
 > **Try it live** — Run real Bitcoin Script examples step by step, modify parameters, and experiment with Taproot constructions interactively:
 >
 > **[bitcoincoding.dev](https://bitcoincoding.dev)** | [Source repo](https://github.com/aaron-recompile/mastering-taproot-interactive)
-
+>
+> Companion toolkit: [btcaaron](https://pypi.org/project/btcaaron/) · Taproot visualizer: [RootScope](https://github.com/aaron-recompile/rootscope)
 ---
 
 ### Early Testers Welcome
